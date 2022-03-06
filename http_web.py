@@ -1,22 +1,23 @@
 # !/usr/bin/env python3
 
+from pickle import FALSE
 import RPi.GPIO as GPIO
 import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 host_name = '0.0.0.0'  # IP Address of Raspberry Pi
 host_port = 8000
-led1_on = False
-led2_on = False
+led1_on = True
+led2_on = True
 
 def setupGPIO():
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
 
-    GPIO.setup(18, GPIO.OUT)
-    GPIO.setup(20, GPIO.OUT)
-    GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    GPIO.setup(25, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(27, GPIO.OUT,initial = GPIO.LOW) #led1 pin set as output
+    GPIO.setup(22, GPIO.OUT,initial = GPIO.LOW))                    #led2 pin set as output
+#   GPIO.setup(17, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+#  GPIO.setup(25, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def switch1(ev=None):
     global led1_on
@@ -44,20 +45,6 @@ def detectButtonPress():
 def getTemperature():
     temp = os.popen("/opt/vc/bin/vcgencmd measure_temp").read()
     return temp
-
-def getLED1():
-    if GPIO.output(18) == LOW:
-        return "OFF"
-    else: 
-        return "ON"
-
-def getLED2():
-    if GPIO.output(18) == LOW:
-        return "OFF"
-    else: 
-        return "ON"
-
-
 
 class MyServer(BaseHTTPRequestHandler):
 
@@ -99,9 +86,16 @@ class MyServer(BaseHTTPRequestHandler):
            </body>
            </html>
         '''
+        global led1_on, led2_on
         temp = "getTemperature()"
-        led1 = getLED1()
-        led2 = getLED2()
+        if led1_on == True:
+            led1 = "On"
+        else:
+            led1 = "Off"
+        if led2_on == True:
+            led2 = "On"
+        else:
+            led2 = "Off"
         self.do_HEAD()
         self.wfile.write(html.format(temp[5:], led1, led2).encode("utf-8"))
 
@@ -110,17 +104,23 @@ class MyServer(BaseHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         post_data = self.rfile.read(content_length).decode("utf-8")
         [led, post_data] = post_data.split("=")
+        global led1_on, led2_on
 
         if led == "led1":
             if post_data == 'On':
-                GPIO.output(18, GPIO.HIGH)
+                led1_on = True
+                GPIO.output(27, GPIO.HIGH)
             else:
-                GPIO.output(18, GPIO.LOW)
+                led1_on = False
+                GPIO.output(27, GPIO.LOW)
         else:
             if post_data == 'On':
-                GPIO.output(20, GPIO.HIGH)
+                led2_on = True
+                GPIO.output(22, GPIO.HIGH)
             else:
-                GPIO.output(20, GPIO.LOW)
+                led2_on = False
+                GPIO.output(22, GPIO.LOW)
+        
 
         print("LED is {}".format(post_data))
         self._redirect('/')  # Redirect back to the root url
@@ -129,8 +129,8 @@ class MyServer(BaseHTTPRequestHandler):
 # # # # # Main # # # # #
 
 if __name__ == '__main__':
-    setupGPIO()
-    detectButtonPress()
+    # setupGPIO()
+    # detectButtonPress()
     http_server = HTTPServer((host_name, host_port), MyServer)
     print("Server Starts - %s:%s" % (host_name, host_port))
 
